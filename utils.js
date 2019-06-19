@@ -27,9 +27,10 @@ exports.scrapeSongData = async (url) => {
     }
 }
 
-exports.getSongURI = async (token, playlistData, i) => {
+exports.getSongURI = async (token, songs, i) => {
     try {
-        const song = playlistData.songs[i]
+        console.log('Gathering individual song id...')
+        const song = songs[i]
         const response = await axios({
             method: 'get',
             url: 'https://api.spotify.com/v1/search?query=track%3A' + song.title + '+artist%3A' + song.artist + '&type=track&market=US&offset=0&limit=1',
@@ -38,9 +39,7 @@ exports.getSongURI = async (token, playlistData, i) => {
             }
         })
         if (response.data.tracks.items[0] != undefined){
-            const id = response.data.tracks.items[0].url
-            playlistData.songs[i].uri = uri
-            return uri
+            return response.data.tracks.items[0].uri
         } else {
             return ""
         }
@@ -53,8 +52,9 @@ exports.getAllSongURIs = async(token, playlistData) => {
     try {
         console.log('Gathering song IDs from Spotify...')
         let promises = []
-        for (i = 0; i < playlistData.songs.length; i++){
-            promises.push(getSongID(token, playlistData, i))
+        let songs = Object.values(playlistData.songs)
+        for (i = 0; i < songs.length; i++){
+            promises.push(this.getSongURI(token, songs, i))
         }
         return Promise.all(promises) 
     } catch(error){
@@ -64,6 +64,7 @@ exports.getAllSongURIs = async(token, playlistData) => {
 
 exports.createPlaylist = async(spotifyID, token, playlistData) => {
     console.log('Creating Spotify Playlist...')
+    console.log(spotifyID)
     try {
         const response = await axios({
             method: 'post',
@@ -73,7 +74,8 @@ exports.createPlaylist = async(spotifyID, token, playlistData) => {
                 public: false
             },
             headers: {
-                Authorization: 'Bearer ' + token
+                Authorization: 'Bearer ' + token,
+                'Content-Type': 'application/json'
             }
         })
         console.log(response)
@@ -108,13 +110,15 @@ exports.addSongsToPlayist = async(playlistMetadata, songURIs, token) => {
 
 //improve error chain
 exports.buildPlaylist = async(spotifyID, token, playlistData) => {
-    getAllSongURIs(token, playlistData).then(songURIs => {
-        songURIs = songURIS.filter(uri => uri != "")
+    this.getAllSongURIs(token, playlistData).then(songURIs => {
+        songURIs = songURIs.filter(uri => uri != "")
         songURIs = JSON.stringify(songURIs)
-        createPlaylist(playlistData, token, spotifyID).then(playlistMetadata => {
-            addSongsToPlayist(playlistMetadata, songURIS, token).then(urls => {
-                return urls
-            })
-        })
+        this.createPlaylist(spotifyID, token, playlistData)
     })
+    // .then(playlistMetadata => {
+    //     this.addSongsToPlayist(playlistMetadata, songURIs, token).then(urls => {
+    //         return urls
+    //     })
+    // })
 }
+    
